@@ -1,4 +1,4 @@
-Subject: [PATCH] WIP
+Subject: [PATCH] [FEATURE] add inlineTableConfiguration for non tt_content parent tables
 ---
 Index: Classes/Model/L10nBaseService.php
 IDEA additional info:
@@ -7,7 +7,20 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 ===================================================================
 diff --git a/Classes/Model/L10nBaseService.php b/Classes/Model/L10nBaseService.php
 --- a/Classes/Model/L10nBaseService.php	(revision 2c2fe920057559bf48c74c8afee43539dae3bf79)
-+++ b/Classes/Model/L10nBaseService.php	(date 1684753033220)
++++ b/Classes/Model/L10nBaseService.php	(revision d96e52c08066cfa980a6eefe6eada208327e3ae4)
+@@ -23,11 +23,11 @@
+  ***************************************************************/
+ 
+ use Localizationteam\L10nmgr\Model\Dto\EmConfiguration;
++use Localizationteam\L10nmgr\Model\Tools\FlexFormTools;
+ use PDO;
+ use Psr\Log\LoggerAwareInterface;
+ use Psr\Log\LoggerAwareTrait;
+ use TYPO3\CMS\Backend\Utility\BackendUtility;
+-use Localizationteam\L10nmgr\Model\Tools\FlexFormTools;
+ use TYPO3\CMS\Core\Database\ConnectionPool;
+ use TYPO3\CMS\Core\Database\Query\QueryBuilder;
+ use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
 @@ -99,12 +99,15 @@
       */
      protected EmConfiguration $emConfiguration;
@@ -112,28 +125,6 @@ diff --git a/Classes/Model/L10nBaseService.php b/Classes/Model/L10nBaseService.p
              }
          }
      }
-Index: ext_localconf.php
-IDEA additional info:
-Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
-<+>UTF-8
-===================================================================
-diff --git a/ext_localconf.php b/ext_localconf.php
---- a/ext_localconf.php	(revision 2c2fe920057559bf48c74c8afee43539dae3bf79)
-+++ b/ext_localconf.php	(date 1684762009317)
-@@ -30,3 +30,13 @@
- ];
- 
- $GLOBALS['TYPO3_CONF_VARS']['FE']['addRootLineFields'] .= ',l10nmgr_configuration,l10nmgr_configuration_next_level';
-+
-+call_user_func(static function (): void {
-+    if (\TYPO3\CMS\Core\Utility\ExtensionManagementUtility::isLoaded('container')) {
-+        $GLOBALS['TYPO3_CONF_VARS']['EXTCONF']['l10nmgr']['additionalInlineTablesConfig']['tt_content'] ??= [];
-+        $GLOBALS['TYPO3_CONF_VARS']['EXTCONF']['l10nmgr']['additionalInlineTablesConfig']['tt_content'][] = [
-+            'parentTable' => 'tt_content',
-+            'parentField' => 'tx_container_parent'
-+        ];
-+    }
-+});
 Index: Classes/Model/RecursivelyCheckRelationParent.php
 IDEA additional info:
 Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
@@ -141,9 +132,9 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 ===================================================================
 diff --git a/Classes/Model/RecursivelyCheckRelationParent.php b/Classes/Model/RecursivelyCheckRelationParent.php
 new file mode 100644
---- /dev/null	(date 1684671503984)
-+++ b/Classes/Model/RecursivelyCheckRelationParent.php	(date 1684671503984)
-@@ -0,0 +1,386 @@
+--- /dev/null	(revision d96e52c08066cfa980a6eefe6eada208327e3ae4)
++++ b/Classes/Model/RecursivelyCheckRelationParent.php	(revision d96e52c08066cfa980a6eefe6eada208327e3ae4)
+@@ -0,0 +1,383 @@
 +<?php
 +
 +declare(strict_types=1);
@@ -152,10 +143,10 @@ new file mode 100644
 +
 +use Doctrine\DBAL\DBALException;
 +use Doctrine\DBAL\Exception;
++use function is_array;
 +use TYPO3\CMS\Backend\Utility\BackendUtility;
 +use TYPO3\CMS\Core\DataHandling\DataHandler;
 +use TYPO3\CMS\Core\Utility\GeneralUtility;
-+use function is_array;
 +
 +class RecursivelyCheckRelationParent
 +{
@@ -213,6 +204,9 @@ new file mode 100644
 +     *      // the childrenField property must be set to this fields name.
 +     *      // Otherwise, if this relation can only be viewed from the child-side
 +     *      // and no such field exists, this property should not be set.
++     *      // If there's no childrenField, there must be a data handler hook in place
++     *      // that localizes all child record when a parent record gets localized,
++     *      // like B13\Container\Hooks\Datahandler\CommandMapPostProcessingHook::processCmdmap_postProcess.
 +     *      'childrenField' => 'tx_ext_relation_table'
 +     *  ]],
 +     * ];
@@ -244,18 +238,16 @@ new file mode 100644
 +     * @param string $tableName the table name of the child element
 +     * @param array $dataHandlerCommands a reference to the {@link DataHandler} command array
 +     * where the commands, necessary to localize the given record, will be put into.
-+     * @return void
 +     * @throws DBALException
 +     * @throws Exception
 +     * @throws \Doctrine\DBAL\Driver\Exception
 +     */
 +    public function localizeRecordAndRequiredParents(
-+        array  $defaultLanguageChildElement,
-+        int    $targetLanguage,
++        array $defaultLanguageChildElement,
++        int $targetLanguage,
 +        string $tableName,
-+        array  &$dataHandlerCommands
-+    ): void
-+    {
++        array &$dataHandlerCommands
++    ): void {
 +        $this->depthCounter = 0;
 +        $this->localizeRecordAndRequireParentsRecursively(
 +            $defaultLanguageChildElement,
@@ -277,18 +269,16 @@ new file mode 100644
 +     * @param string $tableName the table name of the child element
 +     * @param array $dataHandlerCommands a reference to the {@link DataHandler} command array
 +     * where the commands, necessary to localize the given record, will be put into.
-+     * @return void
 +     * @throws DBALException
 +     * @throws Exception
 +     * @throws \Doctrine\DBAL\Driver\Exception
 +     */
 +    protected function localizeRecordAndRequireParentsRecursively(
-+        array  $element,
-+        int    $targetLanguage,
++        array $element,
++        int $targetLanguage,
 +        string $tableName,
-+        array  &$dataHandlerCommands
-+    ): void
-+    {
++        array &$dataHandlerCommands
++    ): void {
 +        $this->depthCounter++;
 +
 +        if ($this->depthCounter >= 100) {
@@ -423,14 +413,13 @@ new file mode 100644
 +     * @throws \Doctrine\DBAL\Driver\Exception
 +     */
 +    protected function localizeRecordFromParentSideOfRelation(
-+        array   $childElement,
-+        int     $targetLanguage,
-+        string  $parentTable,
-+        string  $parentField,
++        array $childElement,
++        int $targetLanguage,
++        string $parentTable,
++        string $parentField,
 +        ?string $childrenField,
-+        array   &$dataHandlerCommands
-+    ): bool
-+    {
++        array &$dataHandlerCommands
++    ): bool {
 +        if (!isset($childElement[$parentField]) || $childElement[$parentField] <= 0) {
 +            return false;
 +        }
@@ -467,7 +456,6 @@ new file mode 100644
 +
 +                // append the record uid to the existing action or create a new one if necessary
 +                if (!empty($commandForParent['inlineLocalizeSynchronize']['ids'])) {
-+
 +                    // Make sure that the existing command for the parent record is for this children field
 +                    if ($commandForParent['inlineLocalizeSynchronize']['field'] === $childrenField) {
 +                        $commandForParent['inlineLocalizeSynchronize']['ids'][] =
@@ -480,9 +468,9 @@ new file mode 100644
 +                    $this->commitDataHandlerCommand([
 +                        $parentTable => [
 +                            $parentLocalization['uid'] => [
-+                                'inlineLocalizeSynchronize' => $commandForParent['inlineLocalizeSynchronize']
-+                            ]
-+                        ]
++                                'inlineLocalizeSynchronize' => $commandForParent['inlineLocalizeSynchronize'],
++                            ],
++                        ],
 +                    ]);
 +                }
 +
@@ -530,4 +518,26 @@ new file mode 100644
 +        //       What about Exceptions during data handler processing?
 +    }
 +}
+Index: ext_localconf.php
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ext_localconf.php b/ext_localconf.php
+--- a/ext_localconf.php	(revision 2c2fe920057559bf48c74c8afee43539dae3bf79)
++++ b/ext_localconf.php	(revision d96e52c08066cfa980a6eefe6eada208327e3ae4)
+@@ -30,3 +30,13 @@
+ ];
+ 
+ $GLOBALS['TYPO3_CONF_VARS']['FE']['addRootLineFields'] .= ',l10nmgr_configuration,l10nmgr_configuration_next_level';
++
++call_user_func(static function (): void {
++    if (\TYPO3\CMS\Core\Utility\ExtensionManagementUtility::isLoaded('container')) {
++        $GLOBALS['TYPO3_CONF_VARS']['EXTCONF']['l10nmgr']['additionalInlineTablesConfig']['tt_content'] ??= [];
++        $GLOBALS['TYPO3_CONF_VARS']['EXTCONF']['l10nmgr']['additionalInlineTablesConfig']['tt_content'][] = [
++            'parentTable' => 'tt_content',
++            'parentField' => 'tx_container_parent'
++        ];
++    }
++});
 
