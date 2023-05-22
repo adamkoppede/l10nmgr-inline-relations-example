@@ -1,0 +1,89 @@
+{
+  "name": "example/example",
+  "description": "",
+  "license": "GPL-2.0-or-later",
+  "type": "typo3-cms-extension",
+  "readme": "README.md",
+  "config": {
+    "allow-plugins": {
+      "typo3/class-alias-loader": true,
+      "typo3/cms-composer-installers": true,
+      "cweagans/composer-patches": true
+    },
+    "sort-packages": true
+  },
+  "require": {
+    "php": "^8.2",
+    "b13/container": "^2.2",
+    "localizationteam/l10nmgr": "^11.0.0",
+    "typo3/cms-core": "^11.5.0"
+  },
+  "require-dev": {
+    "roave/security-advisories": "dev-latest",
+    "friendsofphp/php-cs-fixer": "^3.13",
+    "phpstan/phpstan": "^1.10",
+    "squizlabs/php_codesniffer": "^3.7",
+    "vimeo/psalm": "^5.11",
+    "phpspec/prophecy-phpunit": "^2.0",
+    "typo3/testing-framework": "^7.0.0",
+    "cweagans/composer-patches": "1.7.2"
+  },
+  "scripts": {
+    "psalm": "vendor/bin/psalm --config=psalm.xml",
+    "cs-fixer": "PHP_CS_FIXER_IGNORE_ENV=1 vendor/bin/php-cs-fixer fix --config .php-cs-fixer.php",
+    "phpstan": "vendor/bin/phpstan analyse --level 9 ./Classes",
+    "unit-tests": "echo 'not implemented'",
+    "functional-tests": [
+      "vendor/bin/phpunit -c ./Tests/FunctionalTests.xml --cache-result --cache-result-file=./Tests/.functional.phpunit.result.cache --order-by=depends,defects"
+    ],
+    "test:lint-only": [
+      "@psalm",
+      "@cs-fixer",
+      "@phpstan"
+    ],
+    "test:no-services": [
+      "@test:lint-only",
+      "@unit-tests"
+    ],
+    "test": [
+      "@test:no-services",
+      "@functional-tests"
+    ]
+  },
+  "autoload": {
+    "psr-4": {
+      "Example\\Example\\": "Classes"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Example\\Example\\Tests\\": "Tests"
+    }
+  },
+  "extra": {
+    "typo3/cms": {
+      "extension-key": "example"
+    },
+    "enable-patching": true,
+    "patches": {
+      "localizationteam/l10nmgr": {
+        "[FEATURE] inlineTablesConfig with parent tables other than tt_content": "patches/aa.diff"
+      }
+    }
+  },
+  "archive": {
+    "exclude": [
+      ".git",
+      ".idea",
+      ".ddev",
+      "Tests",
+      "public",
+      "vendor",
+      "var",
+      ".php-cs-fixer.php",
+      ".php-cs-fixer.cache",
+      "composer.lock",
+      "psalm.xml"
+    ]
+  }
+}

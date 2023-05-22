@@ -1,0 +1,33 @@
+<phpunit
+        backupGlobals="true"
+        bootstrap="./FunctionalTestsBootstrap.php"
+        colors="true"
+        convertErrorsToExceptions="true"
+        convertWarningsToExceptions="true"
+        forceCoversAnnotation="false"
+        processIsolation="true"
+        stopOnError="false"
+        stopOnFailure="false"
+        stopOnIncomplete="false"
+        stopOnSkipped="false"
+        verbose="false"
+>
+    <testsuites>
+        <testsuite name="Functional Tests">
+            <directory>./Functional/</directory>
+        </testsuite>
+    </testsuites>
+    <coverage>
+        <include>
+            <directory suffix=".php">../Classes/</directory>
+        </include>
+        <report>
+            <cobertura outputFile="./_output/cobertura-functional.xml"/>
+            <html outputDirectory="./_output/phpunit-functional-html"/>
+            <text outputFile="php://stdout"/>
+        </report>
+    </coverage>
+    <logging>
+        <junit outputFile="./_output/phpunit_junit_functional.xml"/>
+    </logging>
+</phpunit>

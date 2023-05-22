@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<psalm
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        errorLevel="1"
+        xmlns="https://getpsalm.org/schema/config"
+        xsi:schemaLocation="https://getpsalm.org/schema/config vendor/vimeo/psalm/config.xsd"
+        findUnusedBaselineEntry="true"
+        findUnusedCode="true"
+        findUnusedPsalmSuppress="true"
+        findUnusedVariablesAndParams="true"
+>
+    <projectFiles>
+        <directory name="Classes/"/>
+        <directory name="Tests/" />
+        <ignoreFiles>
+            <directory name="public"/>
+            <directory name="vendor"/>
+        </ignoreFiles>
+    </projectFiles>
+    <issueHandlers>
+        <UndefinedConstant>
+            <errorLevel type="suppress">
+                <file name="Tests/FunctionalTestsBootstrap.php" />
+            </errorLevel>
+        </UndefinedConstant>
+        <PropertyNotSetInConstructor>
+            <errorLevel type="suppress">
+                <directory name="Tests" />
+            </errorLevel>
+        </PropertyNotSetInConstructor>
+        <InternalMethod>
+            <errorLevel type="suppress">
+                <referencedMethod name="TYPO3\CMS\Core\Core\Bootstrap::initializeLanguageObject" />
+            </errorLevel>
+        </InternalMethod>
+        <InternalProperty>
+            <errorLevel type="suppress">
+                <referencedProperty name="TYPO3\CMS\Core\DataHandling\DataHandler::$errorLog" />
+            </errorLevel>
+        </InternalProperty>
+        <UnusedClass>
+            <errorLevel type="suppress">
+                <directory name="Tests" />
+            </errorLevel>
+        </UnusedClass>
+    </issueHandlers>
+</psalm>
