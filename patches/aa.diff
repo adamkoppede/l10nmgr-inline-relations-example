@@ -7,7 +7,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 ===================================================================
 diff --git a/Classes/Model/L10nBaseService.php b/Classes/Model/L10nBaseService.php
 --- a/Classes/Model/L10nBaseService.php	(revision 2c2fe920057559bf48c74c8afee43539dae3bf79)
-+++ b/Classes/Model/L10nBaseService.php	(revision d96e52c08066cfa980a6eefe6eada208327e3ae4)
++++ b/Classes/Model/L10nBaseService.php	(revision 8a6eec8e14df03e952d4282f6aa713f23e6933f3)
 @@ -23,11 +23,11 @@
   ***************************************************************/
  
@@ -132,8 +132,8 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 ===================================================================
 diff --git a/Classes/Model/RecursivelyCheckRelationParent.php b/Classes/Model/RecursivelyCheckRelationParent.php
 new file mode 100644
---- /dev/null	(revision d96e52c08066cfa980a6eefe6eada208327e3ae4)
-+++ b/Classes/Model/RecursivelyCheckRelationParent.php	(revision d96e52c08066cfa980a6eefe6eada208327e3ae4)
+--- /dev/null	(revision 8a6eec8e14df03e952d4282f6aa713f23e6933f3)
++++ b/Classes/Model/RecursivelyCheckRelationParent.php	(revision 8a6eec8e14df03e952d4282f6aa713f23e6933f3)
 @@ -0,0 +1,383 @@
 +<?php
 +
@@ -445,7 +445,7 @@ new file mode 100644
 +        if ($parentLocalization !== null && array_key_exists('uid', $parentLocalization)) {
 +            // if there is a children field, we use the inlineLocalizeSynchronize action to localize the child record
 +            if ($childrenField !== null) {
-+                if (!is_array($dataHandlerCommands[$parentTable][$parentLocalization['uid']])) {
++                if (!is_array($dataHandlerCommands[$parentTable][$parentLocalization['uid']] ?? [])) {
 +                    $dataHandlerCommands[$parentTable][$parentLocalization['uid']] = [];
 +                }
 +
@@ -455,7 +455,7 @@ new file mode 100644
 +                $commandForParent = &$dataHandlerCommands[$parentTable][$parentLocalization['uid']];
 +
 +                // append the record uid to the existing action or create a new one if necessary
-+                if (!empty($commandForParent['inlineLocalizeSynchronize']['ids'])) {
++                if (!empty($commandForParent['inlineLocalizeSynchronize']['ids'] ?? [])) {
 +                    // Make sure that the existing command for the parent record is for this children field
 +                    if ($commandForParent['inlineLocalizeSynchronize']['field'] === $childrenField) {
 +                        $commandForParent['inlineLocalizeSynchronize']['ids'][] =
@@ -525,7 +525,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 ===================================================================
 diff --git a/ext_localconf.php b/ext_localconf.php
 --- a/ext_localconf.php	(revision 2c2fe920057559bf48c74c8afee43539dae3bf79)
-+++ b/ext_localconf.php	(revision d96e52c08066cfa980a6eefe6eada208327e3ae4)
++++ b/ext_localconf.php	(revision 8a6eec8e14df03e952d4282f6aa713f23e6933f3)
 @@ -30,3 +30,13 @@
  ];
  
