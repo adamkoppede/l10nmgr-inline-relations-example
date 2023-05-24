@@ -7,7 +7,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 ===================================================================
 diff --git a/Classes/Model/L10nBaseService.php b/Classes/Model/L10nBaseService.php
 --- a/Classes/Model/L10nBaseService.php	(revision 2c2fe920057559bf48c74c8afee43539dae3bf79)
-+++ b/Classes/Model/L10nBaseService.php	(revision 8fde9eb1ab8401ff0d56703733401c5b91987961)
++++ b/Classes/Model/L10nBaseService.php	(revision dc2a7c26127ba6ca47544e59f3edbe7aa2a7814f)
 @@ -23,11 +23,11 @@
   ***************************************************************/
  
@@ -78,7 +78,7 @@ diff --git a/Classes/Model/L10nBaseService.php b/Classes/Model/L10nBaseService.p
                                                  $element = $this->getRawRecord($table, $elementUid);
                                                  if (!empty($element['uid_foreign']) && !empty($element['tablenames']) && !empty($element['fieldname'])) {
                                                      if (!empty($GLOBALS['TCA'][$element['tablenames']]['columns'][$element['fieldname']]['config']['behaviour']['allowLanguageSynchronization'])) {
-@@ -724,21 +699,13 @@
+@@ -724,21 +699,14 @@
                                                      }
                                                  }
                                              } else {
@@ -90,7 +90,8 @@ diff --git a/Classes/Model/L10nBaseService.php b/Classes/Model/L10nBaseService.p
 +                                                    $element,
 +                                                    (int)$Tlang,
 +                                                    $table,
-+                                                    $this->TCEmain_cmd
++                                                    $this->TCEmain_cmd,
++                                                    $this->childMappingArray
 +                                                );
  
 -                                                //START add container support
@@ -106,7 +107,7 @@ diff --git a/Classes/Model/L10nBaseService.php b/Classes/Model/L10nBaseService.p
                                                  if (!empty($GLOBALS['TCA'][$table]['columns'][$Tfield])) {
                                                      $configuration = $GLOBALS['TCA'][$table]['columns'][$Tfield]['config'] ?? [];
  
-@@ -1051,13 +1018,11 @@
+@@ -1051,13 +1019,11 @@
                      // Add element to existing localization array
                      $this->TCEmain_cmd['tt_content'][$translatedParent['uid']]['inlineLocalizeSynchronize']['ids'][] = $element['uid'] ?? 0;
                  }
@@ -132,9 +133,9 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 ===================================================================
 diff --git a/Classes/Model/RecursivelyCheckRelationParent.php b/Classes/Model/RecursivelyCheckRelationParent.php
 new file mode 100644
---- /dev/null	(revision 8fde9eb1ab8401ff0d56703733401c5b91987961)
-+++ b/Classes/Model/RecursivelyCheckRelationParent.php	(revision 8fde9eb1ab8401ff0d56703733401c5b91987961)
-@@ -0,0 +1,448 @@
+--- /dev/null	(revision dc2a7c26127ba6ca47544e59f3edbe7aa2a7814f)
++++ b/Classes/Model/RecursivelyCheckRelationParent.php	(revision dc2a7c26127ba6ca47544e59f3edbe7aa2a7814f)
+@@ -0,0 +1,463 @@
 +<?php
 +
 +declare(strict_types=1);
@@ -143,13 +144,13 @@ new file mode 100644
 +
 +use Doctrine\DBAL\DBALException;
 +use Doctrine\DBAL\Exception;
++use function is_array;
 +use PDO;
++use TYPO3\CMS\Backend\Utility\BackendUtility;
 +use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 +use TYPO3\CMS\Core\Database\ConnectionPool;
 +use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
 +use TYPO3\CMS\Core\Database\Query\Restriction\WorkspaceRestriction;
-+use function is_array;
-+use TYPO3\CMS\Backend\Utility\BackendUtility;
 +use TYPO3\CMS\Core\DataHandling\DataHandler;
 +use TYPO3\CMS\Core\Utility\GeneralUtility;
 +
@@ -243,23 +244,29 @@ new file mode 100644
 +     * @param string $tableName the table name of the child element
 +     * @param array $dataHandlerCommands a reference to the {@link DataHandler} command array
 +     * where the commands, necessary to localize the given record, will be put into.
++     * @param array $implicitlyTranslatedRecords contains the records, that will be translated after executing the
++     * commands in the data handler command array, but that won't get an entry in the
++     * {@link DataHandler} array of the data handler that was used
++     * to execute them.
++     * Has the format {@code $implicitlyTranslatedRecords[table name][default language record id] = true}.
 +     * @throws DBALException
 +     * @throws Exception
 +     * @throws \Doctrine\DBAL\Driver\Exception
 +     */
 +    public function localizeRecordAndRequiredParents(
-+        array  $defaultLanguageChildElement,
-+        int    $targetLanguage,
++        array $defaultLanguageChildElement,
++        int $targetLanguage,
 +        string $tableName,
-+        array  &$dataHandlerCommands
-+    ): void
-+    {
++        array &$dataHandlerCommands,
++        array &$implicitlyTranslatedRecords
++    ): void {
 +        $this->depthCounter = 0;
 +        $this->localizeRecordAndRequireParentsRecursively(
 +            $defaultLanguageChildElement,
 +            $targetLanguage,
 +            $tableName,
-+            $dataHandlerCommands
++            $dataHandlerCommands,
++            $implicitlyTranslatedRecords
 +        );
 +    }
 +
@@ -275,17 +282,21 @@ new file mode 100644
 +     * @param string $tableName the table name of the child element
 +     * @param array $dataHandlerCommands a reference to the {@link DataHandler} command array
 +     * where the commands, necessary to localize the given record, will be put into.
++     * @param array $implicitlyTranslatedRecords contains the records, that will be translated after executing the
++     * commands in the data handler command array, but that won't have an entry in the
++     * \TYPO3\CMS\Core\DataHandling\DataHandler::$copyMappingArray_merged array the the data handler, that was used
++     * to execute them. Has the format `$implicitlyTranslatedRecords[table name][default language record id] = true`
 +     * @throws DBALException
 +     * @throws Exception
 +     * @throws \Doctrine\DBAL\Driver\Exception
 +     */
 +    protected function localizeRecordAndRequireParentsRecursively(
-+        array  $element,
-+        int    $targetLanguage,
++        array $element,
++        int $targetLanguage,
 +        string $tableName,
-+        array  &$dataHandlerCommands
-+    ): void
-+    {
++        array &$dataHandlerCommands,
++        array &$implicitlyTranslatedRecords
++    ): void {
 +        $this->depthCounter++;
 +
 +        if ($this->depthCounter >= 100) {
@@ -335,7 +346,8 @@ new file mode 100644
 +                'tt_content',
 +                $parentField,
 +                $childrenField,
-+                $dataHandlerCommands
++                $dataHandlerCommands,
++                $implicitlyTranslatedRecords
 +            );
 +        }
 +
@@ -357,7 +369,8 @@ new file mode 100644
 +                    $parentTable,
 +                    $parentField,
 +                    $childrenField,
-+                    $dataHandlerCommands
++                    $dataHandlerCommands,
++                    $implicitlyTranslatedRecords
 +                )) {
 +                    $elementGotLocalized = true;
 +                }
@@ -366,6 +379,8 @@ new file mode 100644
 +
 +        if (!$elementGotLocalized) {
 +            $dataHandlerCommands[$tableName][$uniqueElementId]['localize'] = $targetLanguage;
++        } else {
++            $implicitlyTranslatedRecords[$tableName][$uniqueElementId] = true;
 +        }
 +    }
 +
@@ -420,14 +435,14 @@ new file mode 100644
 +     * @throws \Doctrine\DBAL\Driver\Exception
 +     */
 +    protected function localizeRecordFromParentSideOfRelation(
-+        array   $childElement,
-+        int     $targetLanguage,
-+        string  $parentTable,
-+        string  $parentField,
++        array $childElement,
++        int $targetLanguage,
++        string $parentTable,
++        string $parentField,
 +        ?string $childrenField,
-+        array   &$dataHandlerCommands
-+    ): bool
-+    {
++        array &$dataHandlerCommands,
++        array &$implicitlyTranslatedRecords
++    ): bool {
 +        if (!isset($childElement[$parentField]) || $childElement[$parentField] <= 0) {
 +            return false;
 +        }
@@ -493,24 +508,12 @@ new file mode 100644
 +                $parentDefaultLanguageRecord,
 +                $targetLanguage,
 +                $parentTable,
-+                $dataHandlerCommands
++                $dataHandlerCommands,
++                $implicitlyTranslatedRecords
 +            );
 +            return true;
 +        }
 +        return false;
-+    }
-+
-+    protected function commitDataHandlerCommand(array $commandArray): void
-+    {
-+        $dataHandler = GeneralUtility::makeInstance(DataHandler::class);
-+        // TODO: shouldn't the data handler be configured in the same way as in
-+        //       \Localizationteam\L10nmgr\Model\L10nBaseService::_submitContentAsTranslatedLanguageAndGetFlexFormDiff
-+
-+        $dataHandler->start([], $commandArray);
-+        $dataHandler->process_cmdmap();
-+
-+        // TODO: What about data handler errors?
-+        //       What about Exceptions during data handler processing?
 +    }
 +
 +    /**
@@ -582,6 +585,19 @@ new file mode 100644
 +
 +        return null;
 +    }
++
++    protected function commitDataHandlerCommand(array $commandArray): void
++    {
++        $dataHandler = GeneralUtility::makeInstance(DataHandler::class);
++        // TODO: shouldn't the data handler be configured in the same way as in
++        //       \Localizationteam\L10nmgr\Model\L10nBaseService::_submitContentAsTranslatedLanguageAndGetFlexFormDiff
++
++        $dataHandler->start([], $commandArray);
++        $dataHandler->process_cmdmap();
++
++        // TODO: What about data handler errors?
++        //       What about Exceptions during data handler processing?
++    }
 +}
 Index: ext_localconf.php
 IDEA additional info:
@@ -590,7 +606,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 ===================================================================
 diff --git a/ext_localconf.php b/ext_localconf.php
 --- a/ext_localconf.php	(revision 2c2fe920057559bf48c74c8afee43539dae3bf79)
-+++ b/ext_localconf.php	(revision 8fde9eb1ab8401ff0d56703733401c5b91987961)
++++ b/ext_localconf.php	(revision dc2a7c26127ba6ca47544e59f3edbe7aa2a7814f)
 @@ -30,3 +30,13 @@
  ];
  

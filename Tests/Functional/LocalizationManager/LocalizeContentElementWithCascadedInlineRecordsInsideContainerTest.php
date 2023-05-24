@@ -11,6 +11,8 @@ use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Exception\SiteNotFoundException;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
+use function str_replace;
+
 /**
  * Our most complicated use-case:
  *
@@ -374,12 +376,12 @@ class LocalizeContentElementWithCascadedInlineRecordsInsideContainerTest extends
             'tx_example_brick' => [
                 $virtualUpperBrickId => [
                     'pid' => 1,
-                    'title' => 'Upper Brick',
+                    'title' => 'Default Language Upper Brick',
                     'tt_content' => $virtualPluginElementId
                 ],
                 $virtualLowerBrickId => [
                     'pid' => 1,
-                    'title' => 'Lower Brick',
+                    'title' => 'Default Language Lower Brick',
                     'tx_example_wall' => $virtualWallId
                 ]
             ],
@@ -424,9 +426,15 @@ class LocalizeContentElementWithCascadedInlineRecordsInsideContainerTest extends
             }
         }
 
+        $xmlString = str_replace(
+            ['Default Language Upper Brick', 'Default Language Lower Brick'],
+            ['Localized Upper Brick', 'Localized Lower Brick'],
+            implode("\n", $xmlLines)
+        );
+
         $localizationManager->testImport(
             $configuration,
-            implode("\n", $xmlLines),
+            $xmlString,
             1
         );
         $this->checkDataHandlerForErrors();
@@ -439,6 +447,11 @@ class LocalizeContentElementWithCascadedInlineRecordsInsideContainerTest extends
             $upperBrickId,
             $lowerBrickId
         );
+
+        $upperBrickLocalization = $this->fetchLocalizationOfRecord('tx_example_brick', $upperBrickId);
+        self::assertEquals('Localized Upper Brick', $upperBrickLocalization['title']);
+        $lowerBrickLocalization = $this->fetchLocalizationOfRecord('tx_example_brick', $lowerBrickId);
+        self::assertEquals('Localized Lower Brick', $lowerBrickLocalization['title']);
     }
 
     protected function setUp(): void
